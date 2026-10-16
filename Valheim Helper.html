@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Valheim Helper</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Uncial+Antiqua&display=swap">
+<style>
+:root{--bg:#eef0ea;--card:#fff;--ink:#1d2420;--mute:#5d6860;--line:#d3d8cf;--accent:#2f6b4a;--on:#fff;--need:#f1e3bd;--needline:#b8902f;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12171a;--card:#1b2227;--ink:#e8ece6;--mute:#93a097;--line:#2f3a40;--accent:#6fbf8e;--on:#10231a;--need:#2e2a17;--needline:#d4a73c}}
+:root[data-theme="dark"]{--bg:#12171a;--card:#1b2227;--ink:#e8ece6;--mute:#93a097;--line:#2f3a40;--accent:#6fbf8e;--on:#10231a;--need:#2e2a17;--needline:#d4a73c}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,Segoe UI,sans-serif}
+main{max-width:640px;margin:0 auto;padding:18px 16px 48px}
+h1{font:400 30px/1.1 'Uncial Antiqua',Georgia,serif;margin:6px 0 4px}
+h2{font:400 22px 'Uncial Antiqua',Georgia,serif;margin:8px 0 6px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+h2 small{font:500 14px system-ui,sans-serif;color:var(--mute)}
+.sub{color:var(--mute);margin:0 0 16px}
+.tabs{display:flex;gap:8px;overflow-x:auto;padding:0 16px 8px;margin:0 -16px}
+.tabs button,.reset{flex:none;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:8px 14px;border-radius:20px;font:inherit;font-size:14px;cursor:pointer}
+.tabs button[aria-pressed=true]{background:var(--accent);color:var(--on);border-color:var(--accent)}
+.mode{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:26px 0 10px}
+.mode button{border:1px solid var(--line);background:var(--card);color:var(--ink);padding:12px;border-radius:12px;font:inherit;font-weight:600;cursor:pointer}
+.mode button[aria-pressed=true]{background:var(--accent);color:var(--on);border-color:var(--accent)}
+.list{display:grid;gap:8px;margin:10px 0 18px}
+.row{display:flex;gap:12px;align-items:center;justify-content:space-between;border:1px solid var(--line);background:var(--card);border-radius:12px;padding:10px 12px}
+.row.on{background:var(--need);border-color:var(--needline)}
+.row b{display:block;font-weight:600}
+.row .t{display:block;color:var(--mute);font-size:14px}
+.big{font:400 24px 'Uncial Antiqua',Georgia,serif;min-width:48px;text-align:right}
+.step{display:flex;align-items:center;gap:4px;flex:none}
+.step button{width:40px;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:20px;cursor:pointer}
+.step span{min-width:28px;text-align:center;font-weight:600}
+.empty{color:var(--mute);border:1px dashed var(--line);border-radius:12px;padding:16px}
+.note{color:var(--mute);font-size:13px}
+.reset{border-radius:10px;color:var(--mute)}
+button:focus-visible{outline:3px solid var(--needline);outline-offset:2px}
+</style>
+</head>
+<body>
+<main>
+<h1>Valheim Helper</h1>
+<p class="sub">Wähle, was du bauen oder herstellen willst. Die nötigen Ressourcen stehen oben.</p>
+
+<h2>Das brauchst du <small id="count"></small></h2>
+<div id="total" class="list"></div>
+<button class="reset" id="reset">Alles zurücksetzen</button>
+
+<div class="mode" id="mode">
+ <button data-m="rec">Bauen &amp; herstellen</button>
+ <button data-m="res">Einzelne Ressourcen</button>
+</div>
+<div class="tabs" id="tabs" role="group" aria-label="Biom wählen"></div>
+<div id="all" class="list"></div>
+<p class="note">Mengen aus der Rezeptdatenbank von Bamboo Gaming (Valheim 1.0.7). Bronze wird in Kupfer und Zinn umgerechnet (2 Kupfer + 1 Zinn je Bronze). In 1.0 verlangen manche Rezepte zusätzlich ein Idol-Item, das hier fehlt.</p>
+</main>
+
+<script>
+const BIOMES=["Alle","Wiesen","Schwarzwald","Sumpf","Berge","Ebenen","Nebelland"];
+const R=[
+["Holz","Wiesen","Bäume fällen, Axt nötig"],
+["Stein","Wiesen","Steine am Boden oder Felsen abbauen"],
+["Feuerstein","Wiesen","Am Ufer von Wasser sammeln"],
+["Harz","Wiesen","Von Graulingen und Bäumen"],
+["Hirschleder","Wiesen","Hirsche jagen"],
+["Federn","Wiesen","Vögel jagen"],
+["Honig","Wiesen","Bienenstock plündern"],
+["Kohle","Wiesen","Köhlerei bauen, Holz verbrennen"],
+["Lederreste","Wiesen","Wildschweine und Nacks jagen"],
+["Feines Holz","Wiesen","Birken fällen"],
+["Hartes Geweih","Wiesen","Eikthyr besiegen"],
+["Kupfer","Schwarzwald","Kupferadern, Erz im Schwarzwald"],
+["Zinn","Schwarzwald","In Flüssen und Flachwasser abbauen"],
+["Kernholz","Schwarzwald","Hohe Kiefern fällen, Bronzeaxt"],
+["Trollhaut","Schwarzwald","Trolle besiegen"],
+["Surtlingkern","Schwarzwald","Surtling-Spawner in Krypten"],
+["Knochenfragmente","Schwarzwald","Skelette besiegen"],
+["Eisenschrott","Sumpf","In versunkenen Krypten des Sumpfs"],
+["Schleim","Sumpf","Blobs besiegen"],
+["Eingeweide","Sumpf","Draugr und Blobs"],
+["Uralte Rinde","Sumpf","Uralte Bäume fällen"],
+["Silber","Berge","Silberadern mit dem Wolfsköder finden"],
+["Wolfspelz","Berge","Wölfe jagen"],
+["Obsidian","Berge","Obsidian-Felsen abbauen"],
+["Frostdrüse","Berge","Drachen und Frost-Gegner"],
+["Drachenträne","Berge","Moder besiegen"],
+["Schwarzmetall","Ebenen","Fulingen-Dörfer plündern"],
+["Flachs","Ebenen","Pflanzen, Flachsfelder anlegen"],
+["Loxfell","Ebenen","Loxe jagen"],
+["Gerste","Ebenen","Pflanzen anbauen"],
+["Eitr","Nebelland","Gjall und Seeker besiegen"],
+["Yggdrasil-Holz","Nebelland","Riesige Bäume fällen"],
+["Chitin","Nebelland","Seeker-Panzer sammeln"]
+];
+const CATS=["Alle","Von Hand","Arbeitsbank","Schmiede","Stationen"];
+const REC=[
+["Keule","Von Hand","",{Holz:6}],
+["Hammer","Von Hand","",{Holz:3,Stein:2}],
+["Steinaxt","Von Hand","",{Holz:5,Stein:4}],
+["Fackel","Von Hand","",{Holz:1,Harz:1}],
+["Geweihspitzhacke","Arbeitsbank","",{Holz:10,"Hartes Geweih":1}],
+["Hacke","Arbeitsbank","",{Holz:5,Stein:2}],
+["Feuersteinaxt","Arbeitsbank","",{Holz:4,Feuerstein:6}],
+["Feuersteinmesser","Arbeitsbank","",{Holz:2,Feuerstein:4,Lederreste:2}],
+["Feuersteinspeer","Arbeitsbank","",{Holz:5,Feuerstein:10,Lederreste:2}],
+["Holzpfeile","Arbeitsbank","20 Stück",{Holz:8}],
+["Feuersteinpfeile","Arbeitsbank","20 Stück",{Holz:8,Feuerstein:2,Federn:2}],
+["Feuerpfeile","Arbeitsbank","20 Stück",{Holz:8,Harz:8,Federn:2}],
+["Primitiver Bogen","Arbeitsbank","",{Holz:10,Lederreste:8}],
+["Holzschild","Arbeitsbank","",{Holz:10,Harz:4,Lederreste:4}],
+["Holzturmschild","Arbeitsbank","",{Holz:10,Lederreste:6}],
+["Lumpenwams","Arbeitsbank","",{Lederreste:5}],
+["Lumpenhose","Arbeitsbank","",{Lederreste:5}],
+["Lederhelm","Arbeitsbank","",{Hirschleder:6}],
+["Ledertunika","Arbeitsbank","",{Hirschleder:6}],
+["Lederhose","Arbeitsbank","",{Hirschleder:6}],
+["Hirschfellumhang","Arbeitsbank","",{Hirschleder:4,Knochenfragmente:5}],
+["Feinholzbogen","Arbeitsbank","",{"Feines Holz":10,Kernholz:10,Hirschleder:2}],
+["Kupfermesser","Schmiede","",{Holz:2,Kupfer:8}],
+["Schlachtmesser","Schmiede","",{Holz:2,Zinn:4}],
+["Bronzeaxt","Schmiede","",{Bronze:8}],
+["Bronzehacke","Schmiede","",{Kernholz:3,Bronze:10}],
+["Bronzeschwert","Schmiede","",{Holz:2,Bronze:8,Lederreste:2}],
+["Bronzespeer","Schmiede","",{Holz:5,Bronze:6,Hirschleder:2}],
+["Bronzestreitkolben","Schmiede","",{Holz:4,Bronze:8,Lederreste:3}],
+["Bronzeatgeir","Schmiede","",{Holz:10,Bronze:8,Lederreste:2}],
+["Bronzebuckler","Schmiede","",{Holz:4,Bronze:10}],
+["Bronzehelm","Schmiede","",{Bronze:5,Hirschleder:2}],
+["Bronzebrustplatte","Schmiede","",{Bronze:5,Hirschleder:2}],
+["Bronzebeinschienen","Schmiede","",{Bronze:5,Hirschleder:2}],
+["Bronzepfeile","Schmiede","20 Stück",{Holz:8,Bronze:1,Federn:2}],
+["Kultivator","Schmiede","",{Kernholz:5,Bronze:5}],
+["Arbeitsbank","Stationen","",{Holz:10}],
+["Truhe","Stationen","",{Holz:10}],
+["Schmiede","Stationen","",{Holz:10,Stein:4,Kohle:4,Kupfer:6}],
+["Köhlerei","Stationen","Menge unbestätigt",{Stein:20,Surtlingkern:2}],
+["Schmelzofen","Stationen","Menge unbestätigt",{Stein:20,Surtlingkern:5}]
+];
+const $=id=>document.getElementById(id);
+let S={rec:{},res:{}},mode="rec",biome="Alle",cat="Alle";
+try{const x=JSON.parse(localStorage.getItem("vh2")||"null");if(x&&x.rec&&x.res)S=x}catch(e){}
+function save(){try{localStorage.setItem("vh2",JSON.stringify(S))}catch(e){}}
+function stepper(g,k){
+ const d=document.createElement("div");d.className="step";
+ const mk=(t,l,f)=>{const b=document.createElement("button");b.textContent=t;b.setAttribute("aria-label",l+" "+k);b.onclick=f;return b};
+ const n=document.createElement("span");n.textContent=g[k]||0;
+ d.append(mk("−","Weniger",()=>{g[k]=Math.max(0,(g[k]||0)-1);if(!g[k])delete g[k];save();render()}),n,
+          mk("+","Mehr",()=>{g[k]=(g[k]||0)+1;save();render()}));
+ return d;
+}
+function row(name,sub,g){
+ const r=document.createElement("div");r.className="row"+(g[name]?" on":"");
+ const l=document.createElement("div");
+ l.innerHTML="<b></b><span class='t'></span>";
+ l.children[0].textContent=name;l.children[1].textContent=sub;
+ r.append(l,stepper(g,name));return r;
+}
+function render(){
+ document.querySelectorAll("#mode button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.m===mode));
+ $("tabs").innerHTML="";
+ const cur=mode==="res"?biome:cat;
+ (mode==="res"?BIOMES:CATS).forEach(n=>{const b=document.createElement("button");b.textContent=n;b.setAttribute("aria-pressed",n===cur);b.onclick=()=>{if(mode==="res")biome=n;else cat=n;render()};$("tabs").appendChild(b)});
+ $("all").innerHTML="";
+ if(mode==="rec"){
+  REC.filter(r=>cat==="Alle"||r[1]===cat).forEach(([n,c,d,ing])=>$("all").appendChild(row(n,(d?d+": ":"")+Object.entries(ing).map(([k,v])=>v+" "+k).join(", "),S.rec)));
+ }else{
+  R.filter(r=>biome==="Alle"||r[1]===biome).forEach(r=>$("all").appendChild(row(r[0],r[2],S.res)));
+ }
+ const t={};
+ const add=(k,v)=>{t[k]=(t[k]||0)+v};
+ REC.forEach(([n,c,d,ing])=>{const q=S.rec[n]||0;for(const k in ing){if(k==="Bronze"){add("Kupfer",2*ing[k]*q);add("Zinn",ing[k]*q)}else add(k,ing[k]*q)}});
+ for(const k in S.res)t[k]=(t[k]||0)+S.res[k];
+ const lines=R.filter(r=>t[r[0]]>0);
+ $("total").innerHTML="";
+ $("count").textContent=lines.length?lines.length+" Ressourcen":"";
+ if(!lines.length){const e=document.createElement("div");e.className="empty";e.textContent="Noch nichts gewählt. Wähle unten, was du bauen oder herstellen willst.";$("total").appendChild(e)}
+ lines.forEach(r=>{
+  const d=document.createElement("div");d.className="row on";
+  d.innerHTML="<div><b></b><span class='t'></span></div><span class='big'></span>";
+  d.querySelector("b").textContent=r[0];
+  d.querySelector(".t").textContent=r[1]+": "+r[2];
+  d.querySelector(".big").textContent=t[r[0]]+"×";
+  $("total").appendChild(d);
+ });
+}
+document.querySelectorAll("#mode button").forEach(b=>b.onclick=()=>{mode=b.dataset.m;render()});
+$("reset").onclick=()=>{S={rec:{},res:{}};save();render()};
+render();
+</script>
+</body>
+</html>
